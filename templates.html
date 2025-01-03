@@ -10,9 +10,12 @@
     <form action="/process" method="POST" enctype="multipart/form-data">
         <label for="image">Upload Puzzle Image:</label>
         <input type="file" id="image" name="image" required><br><br>
-        <label for="email">Enter Email (Optional):</label>
-        <input type="email" id="email" name="email"><br><br>
         <button type="submit">Submit</button>
     </form>
+
+    {% if output %}
+        <h2>Result:</h2>
+        <a href="{{ url_for('download_file', filename=output) }}" target="_blank">Download Processed Image</a>
+    {% endif %}
 </body>
 </html>
