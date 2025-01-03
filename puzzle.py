@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
 import onnxruntime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_mail import Mail, Message
 import os
+import shutil
 
 # Flask 初始化
 app = Flask(__name__)
@@ -12,12 +13,12 @@ app = Flask(__name__)
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'  # 使用 Gmail SMTP 服務
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'  # 替換為你的 Gmail
-app.config['MAIL_PASSWORD'] = 'your_password'        # 替換為你的 Gmail 應用密碼
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')  # 環境變數
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')  # 環境變數
 mail = Mail(app)
 
 # 載入 ONNX 模型
-model_path = "yolov8.onnx"  # 替換為你的 YOLO 模型路徑
+model_path = "yolov8.onnx"  # 確保模型文件在項目根目錄
 session = onnxruntime.InferenceSession(model_path)
 
 def preprocess_image(image_path):
@@ -44,9 +45,14 @@ def detect_puzzle(image_path):
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
     # 保存處理後的圖像
-    output_path = "output_image.png"
+    output_path = "temp/output_image.png"
     cv2.imwrite(output_path, original_img)
     return output_path
+
+@app.route('/')
+def home():
+    """顯示前端頁面"""
+    return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
 def process_images():
@@ -57,8 +63,8 @@ def process_images():
 
     # 儲存圖像
     image = request.files['image']
-    image_path = f"temp/{image.filename}"
     os.makedirs("temp", exist_ok=True)
+    image_path = f"temp/{image.filename}"
     image.save(image_path)
 
     # 使用 ONNX 模型檢測
@@ -69,12 +75,15 @@ def process_images():
     if user_email:
         send_email_with_attachment(user_email, output_path)
 
+    # 清理臨時文件
+    shutil.rmtree("temp", ignore_errors=True)
+
     return jsonify({"message": "Image processed successfully", "output": output_path})
 
 def send_email_with_attachment(email, attachment_path):
     """發送包含附件的 Email"""
     msg = Message("Puzzle Analysis Result",
-                  sender="your_email@gmail.com",
+                  sender=app.config['MAIL_USERNAME'],
                   recipients=[email])
     msg.body = "Attached is the analysis result of your uploaded puzzle."
     with open(attachment_path, "rb") as f:
@@ -82,4 +91,4 @@ def send_email_with_attachment(email, attachment_path):
     mail.send(msg)
 
 if __name__ == "__main__":
-    app.run(debug=True,host="0.0.0.0",port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5000)
