@@ -82,4 +82,4 @@ def send_email_with_attachment(email, attachment_path):
     mail.send(msg)
 
 if __name__ == "__main__":
-    app.run(debug=True,port=50)
+    app.run(debug=True,host="0.0.0.0",port=5000)
